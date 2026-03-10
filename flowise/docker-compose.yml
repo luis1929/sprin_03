@@ -1,0 +1,26 @@
+services:
+  flowise:
+    image: flowiseai/flowise:latest
+    container_name: flowise
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      - PORT=3000
+      - FLOWISE_USERNAME=admin
+      - FLOWISE_PASSWORD=Barrera1965$
+      - DATABASE_TYPE=sqlite
+      - APIKEY_PATH=/root/.flowise
+      - SECRETKEY_PATH=/root/.flowise
+      - OPENAI_API_KEY=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
+    volumes:
+      - flowise_data:/root/.flowise
+    networks:
+      - ato_network
+
+volumes:
+  flowise_data:
+
+networks:
+  ato_network:
+    driver: bridge

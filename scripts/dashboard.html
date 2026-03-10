@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ATOBot Dashboard — America's Tax Office</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --black:   #0d0d0d;
+    --dark:    #141414;
+    --panel:   #1a1a1a;
+    --border:  #2a2a2a;
+    --gold:    #c9a84c;
+    --gold2:   #e8c97a;
+    --text:    #f0ede8;
+    --muted:   #6b6b6b;
+    --green:   #4caf7d;
+    --red:     #e05c5c;
+    --whatsapp:#25D366;
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: .5;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--dark);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    display: flex; align-items: center;
+    height: 64px; gap: 16px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .brand-shield {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 16px rgba(201,168,76,.25);
+    flex-shrink: 0;
+  }
+  .brand-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem; font-weight: 700;
+    letter-spacing: .3px;
+    line-height: 1.2;
+  }
+  .brand-sub {
+    font-size: .65rem; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; font-weight: 500;
+  }
+  .topbar-right {
+    margin-left: auto; display: flex; align-items: center; gap: 12px;
+  }
+  .pill {
+    padding: 5px 12px; border-radius: 999px; font-size: .7rem; font-weight: 600;
+    display: flex; align-items: center; gap: 5px; letter-spacing: .3px;
+  }
+  .pill-live {
+    background: rgba(76,175,125,.12); border: 1px solid rgba(76,175,125,.3); color: var(--green);
+  }
+  .pill-live::before { content:''; width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite; }
+  .pill-wa {
+    background: rgba(37,211,102,.1); border: 1px solid rgba(37,211,102,.25); color: var(--whatsapp);
+    text-decoration: none;
+  }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    padding: 44px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+    display: flex; align-items: flex-end; gap: 24px;
+  }
+  .page-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.6rem; font-weight: 900; line-height: 1;
+    background: linear-gradient(135deg, var(--text) 40%, var(--gold));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .page-header p { color: var(--muted); font-size: .9rem; margin-top: 8px; }
+  .header-decoration {
+    margin-left: auto; text-align: right;
+  }
+  .header-decoration .big-year {
+    font-family: 'Playfair Display', serif;
+    font-size: 4rem; font-weight: 900; color: var(--border); line-height: 1;
+    letter-spacing: -2px;
+  }
+  .header-decoration .since {
+    font-size: .65rem; color: var(--gold); letter-spacing: 3px; text-transform: uppercase;
+  }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 36px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 20px;
+    position: relative; overflow: hidden;
+    transition: border-color .25s, transform .2s;
+  }
+  .stat:hover { border-color: var(--gold); transform: translateY(-2px); }
+  .stat::after {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--gold), var(--gold2));
+    opacity: 0; transition: opacity .25s;
+  }
+  .stat:hover::after { opacity: 1; }
+  .stat-label { font-size: .65rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+  .stat-val { font-size: 2.2rem; font-weight: 700; line-height: 1.1; margin: 8px 0 4px; }
+  .stat-val.gold { color: var(--gold); }
+  .stat-val.green { color: var(--green); }
+  .stat-val.white { color: var(--text); }
+  .stat-note { font-size: .72rem; color: var(--muted); }
+  .stat-icon { position: absolute; bottom: 14px; right: 16px; font-size: 1.6rem; opacity: .1; }
+
+  /* ── SECTION LABEL ── */
+  .sec-label {
+    font-size: .62rem; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--gold); font-weight: 600; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sec-label::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  /* ── SERVICES ── */
+  .services-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 36px;
+  }
+  .service-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 20px;
+    transition: border-color .2s;
+  }
+  .service-card:hover { border-color: var(--gold); }
+  .svc-icon { font-size: 2rem; margin-bottom: 12px; }
+  .svc-name { font-weight: 600; font-size: .95rem; margin-bottom: 6px; }
+  .svc-desc { font-size: .78rem; color: var(--muted); line-height: 1.6; }
+  .svc-topics {
+    margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .topic-tag {
+    font-size: .65rem; padding: 3px 8px; border-radius: 4px;
+    background: rgba(201,168,76,.1); border: 1px solid rgba(201,168,76,.2);
+    color: var(--gold); font-family: 'DM Mono', monospace;
+  }
+
+  /* ── TWO COL ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 36px; }
+
+  /* ── QUESTIONS ── */
+  .questions-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+  }
+  .q-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: .82rem; line-height: 1.5;
+  }
+  .q-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .q-badge {
+    font-size: .6rem; padding: 2px 7px; border-radius: 3px;
+    font-family: 'DM Mono', monospace; flex-shrink: 0; margin-top: 2px;
+    font-weight: 600; text-transform: uppercase;
+  }
+  .badge-tax  { background: rgba(229,160,60,.15); color: #e5a03c; }
+  .badge-ins  { background: rgba(76,175,125,.12); color: var(--green); }
+  .badge-re   { background: rgba(100,149,237,.12); color: #6495ed; }
+
+  /* ── RECENT CONVOS TABLE ── */
+  .convos-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  }
+  .convos-box table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .convos-box th {
+    text-align: left; padding: 12px 18px;
+    font-size: .62rem; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .convos-box td { padding: 11px 18px; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .convos-box tr:last-child td { border-bottom: none; }
+  .convos-box tr:hover td { background: rgba(255,255,255,.02); }
+  .mono { font-family: 'DM Mono', monospace; color: var(--gold); }
+  .no-data { text-align: center; padding: 32px; color: var(--muted); font-size: .82rem; }
+
+  /* ── ENV / SETUP ── */
+  .setup-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+    margin-bottom: 36px;
+  }
+  .env-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: .82rem;
+  }
+  .env-row:last-child { border-bottom: none; }
+  .env-key { font-family: 'DM Mono', monospace; color: var(--gold2); min-width: 230px; }
+  .env-desc { color: var(--muted); font-size: .75rem; }
+  .badge-req { margin-left:auto; font-size:.6rem; padding:2px 8px; border-radius:3px; background:rgba(224,92,92,.12); color:var(--red); font-weight:600; }
+
+  /* ── ENDPOINTS ── */
+  .endpoints-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+    margin-bottom: 36px;
+  }
+  .ep-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: .82rem; }
+  .ep-row:last-child { border-bottom: none; }
+  .method { font-family: 'DM Mono', monospace; font-size: .65rem; padding: 3px 8px; border-radius: 3px; font-weight:700; min-width: 44px; text-align: center; }
+  .m-get  { background:rgba(76,175,125,.12); color:var(--green); }
+  .m-post { background:rgba(100,149,237,.12); color:#6495ed; }
+  .ep-path { font-family: 'DM Mono', monospace; }
+  .ep-desc { margin-left: auto; color: var(--muted); font-size: .73rem; }
+
+  /* ── ARCH ── */
+  .arch {
+    display: flex; align-items: center;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px 28px; margin-bottom: 36px;
+    gap: 4px; overflow-x: auto;
+  }
+  .arch-node {
+    text-align: center; padding: 14px 10px; min-width: 96px;
+    background: rgba(255,255,255,.03); border: 1px solid var(--border);
+    border-radius: 10px; flex-shrink: 0;
+  }
+  .arch-node .ico { font-size: 1.7rem; }
+  .arch-node .lbl { font-size: .65rem; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  .arch-arrow { color: var(--gold); font-size: 1.2rem; padding: 0 6px; flex-shrink: 0; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 0; margin-top: 12px;
+    text-align: center; color: var(--muted); font-size: .72rem;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  footer a { color: var(--gold); text-decoration: none; }
+
+  @media (max-width: 720px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .services-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .page-header h1 { font-size: 1.8rem; }
+    .header-decoration { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-shield">🛡️</div>
+    <div>
+      <div class="brand-name">America's Tax Office</div>
+      <div class="brand-sub">ATOBot — WhatsApp Assistant</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="pill pill-live">LIVE</span>
+    <a href="https://wa.me/13214676888" target="_blank" class="pill pill-wa">💬 +1 (321) 467-6888</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <h1>ATOBot Dashboard</h1>
+      <p>Bilingual WhatsApp assistant · Tax · Insurance · Real Estate</p>
+    </div>
+    <div class="header-decoration">
+      <div class="big-year">2014</div>
+      <div class="since">Est. Los Angeles, CA</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat">
+      <div class="stat-label">Active Users</div>
+      <div class="stat-val gold">{{ total_users }}</div>
+      <div class="stat-note">conversations started</div>
+      <div class="stat-icon">👥</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Messages Processed</div>
+      <div class="stat-val white">{{ total_messages }}</div>
+      <div class="stat-note">this session</div>
+      <div class="stat-icon">💬</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">AI Model</div>
+      <div class="stat-val" style="font-size:1.1rem;color:var(--gold2)">Claude</div>
+      <div class="stat-note">claude-sonnet-4-6</div>
+      <div class="stat-icon">🤖</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Languages</div>
+      <div class="stat-val green" style="font-size:1.2rem">ES / EN</div>
+      <div class="stat-note">auto-detected</div>
+      <div class="stat-icon">🌐</div>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="sec-label">Message Flow</div>
+  <div class="arch">
+    <div class="arch-node"><div class="ico">📱</div><div class="lbl">Client<br>WhatsApp</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="ico">☁️</div><div class="lbl">Meta<br>Cloud API</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="ico">⚡</div><div class="lbl">FastAPI<br>Webhook</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="ico">🧠</div><div class="lbl">Claude AI<br>Sonnet</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="ico">📤</div><div class="lbl">Response<br>Delivered</div></div>
+  </div>
+
+  <!-- SERVICES -->
+  <div class="sec-label">Services Covered</div>
+  <div class="services-grid">
+    <div class="service-card">
+      <div class="svc-icon">💼</div>
+      <div class="svc-name">Taxes / Impuestos</div>
+      <div class="svc-desc">Personal & business returns, past-due filings, IRS debt resolution, ITIN applications.</div>
+      <div class="svc-topics">
+        <span class="topic-tag">W-2 / 1099</span>
+        <span class="topic-tag">ITIN</span>
+        <span class="topic-tag">IRS Debt</span>
+        <span class="topic-tag">OIC</span>
+        <span class="topic-tag">EITC</span>
+        <span class="topic-tag">Back Taxes</span>
+      </div>
+    </div>
+    <div class="service-card">
+      <div class="svc-icon">🛡️</div>
+      <div class="svc-name">Insurance / Seguros</div>
+      <div class="svc-desc">Licensed agents for health, life, auto and home insurance coverage nationwide.</div>
+      <div class="svc-topics">
+        <span class="topic-tag">Health / Salud</span>
+        <span class="topic-tag">Life / Vida</span>
+        <span class="topic-tag">Auto</span>
+        <span class="topic-tag">Home / Hogar</span>
+        <span class="topic-tag">ACA / Marketplace</span>
+      </div>
+    </div>
+    <div class="service-card">
+      <div class="svc-icon">🏠</div>
+      <div class="svc-name">Real Estate & Loans</div>
+      <div class="svc-desc">Licensed RE agents & mortgage originators for buying, selling, renting, and refinancing.</div>
+      <div class="svc-topics">
+        <span class="topic-tag">FHA / VA</span>
+        <span class="topic-tag">Refinance</span>
+        <span class="topic-tag">Pre-Approval</span>
+        <span class="topic-tag">DSCR</span>
+        <span class="topic-tag">Property Mgmt</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUESTIONS + CONVOS -->
+  <div class="two-col">
+
+    <!-- Sample Questions -->
+    <div>
+      <div class="sec-label">Sample Questions Handled</div>
+      <div class="questions-box">
+        <div class="q-item"><span class="q-badge badge-tax">TAX</span>¿Qué es un ITIN y cómo lo obtengo?</div>
+        <div class="q-item"><span class="q-badge badge-tax">TAX</span>I owe the IRS money. Can ATO help negotiate?</div>
+        <div class="q-item"><span class="q-badge badge-tax">TAX</span>¿Cuál es la diferencia entre W-2 y 1099?</div>
+        <div class="q-item"><span class="q-badge badge-ins">INS</span>What is a deductible vs. copay?</div>
+        <div class="q-item"><span class="q-badge badge-ins">INS</span>¿Qué seguro de vida me conviene?</div>
+        <div class="q-item"><span class="q-badge badge-ins">INS</span>Do I need SR-22 insurance?</div>
+        <div class="q-item"><span class="q-badge badge-re">RE</span>¿Cómo me preapruebo para una casa?</div>
+        <div class="q-item"><span class="q-badge badge-re">RE</span>What is an FHA loan vs. conventional?</div>
+      </div>
+    </div>
+
+    <!-- Recent Conversations -->
+    <div>
+      <div class="sec-label">Recent Conversations</div>
+      <div class="convos-box">
+        {% if conversations %}
+        <table>
+          <thead><tr><th>Phone</th><th>Messages</th><th>Last Seen</th></tr></thead>
+          <tbody>
+            {% for c in conversations %}
+            <tr>
+              <td class="mono">{{ c.phone }}</td>
+              <td>{{ c.messages }}</td>
+              <td style="color:var(--muted);font-size:.75rem">{{ c.last_seen }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="no-data">No conversations yet.<br>Messages will appear here in real time.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ENV VARIABLES -->
+  <div class="sec-label">Environment Variables</div>
+  <div class="setup-box">
+    <div class="env-row">
+      <span class="env-key">WHATSAPP_TOKEN</span>
+      <span class="env-desc">Permanent access token from Meta Business Manager</span>
+      <span class="badge-req">REQUIRED</span>
+    </div>
+    <div class="env-row">
+      <span class="env-key">WHATSAPP_PHONE_ID</span>
+      <span class="env-desc">Phone number ID from Meta Developer Console</span>
+      <span class="badge-req">REQUIRED</span>
+    </div>
+    <div class="env-row">
+      <span class="env-key">VERIFY_TOKEN</span>
+      <span class="env-desc">Your secret string to verify the Meta webhook</span>
+      <span class="badge-req">REQUIRED</span>
+    </div>
+    <div class="env-row">
+      <span class="env-key">ANTHROPIC_API_KEY</span>
+      <span class="env-desc">Claude API key from console.anthropic.com</span>
+      <span class="badge-req">REQUIRED</span>
+    </div>
+  </div>
+
+  <!-- ENDPOINTS -->
+  <div class="sec-label">API Endpoints</div>
+  <div class="endpoints-box">
+    <div class="ep-row"><span class="method m-get">GET</span><span class="ep-path">/</span><span class="ep-desc">This dashboard</span></div>
+    <div class="ep-row"><span class="method m-get">GET</span><span class="ep-path">/webhook</span><span class="ep-desc">Meta webhook verification</span></div>
+    <div class="ep-row"><span class="method m-post">POST</span><span class="ep-path">/webhook</span><span class="ep-desc">Receive & process WhatsApp messages</span></div>
+    <div class="ep-row"><span class="method m-get">GET</span><span class="ep-path">/health</span><span class="ep-desc">Service health check</span></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <span>ATOBot v2.0 · <a href="https://www.atofinancial.com" target="_blank">atofinancial.com</a> · Los Angeles, CA</span>
+    <span>FastAPI · WhatsApp Cloud API · Claude AI · Est. 2014</span>
+  </footer>
+
+</div>
+</body>
+</html>

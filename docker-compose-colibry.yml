@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: colibry_postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: colibry
+      POSTGRES_USER: colibry_user
+      POSTGRES_PASSWORD: colibry_pass123
+    volumes:
+      - postgres_colibry:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: colibry_pgadmin
+    ports:
+      - "8081:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: drph@colibry.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: colibry_n8n
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: admin123
+      WEBHOOK_URL: http://localhost:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
+volumes:
+  postgres_colibry:
+  n8n_data:
