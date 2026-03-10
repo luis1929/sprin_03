@@ -1,11 +1,25 @@
-httpx==0.27.2
-openai>=1.40.0
-python-dotenv==1.0.1
-jinja2==3.1.4
-sqlalchemy==2.0.36
-psycopg2-binary==2.9.9
-flask==3.0.0
+# HTTP requests
 requests==2.31.0
+httpx==0.27.2
+
+# Variables de entorno
+python-dotenv==1.0.1
+
+# OpenAI — versión compatible con Railway
+openai==1.10.0
+tiktoken==0.5.2
+
+# LangChain
 langchain==0.1.0
 langchain-openai==0.0.5
-gunicorn==21.2.0
+
+# Templates
+jinja2==3.1.4
+
+# Base de datos
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.9
+
+
+# Twilio (eliminar cuando confirmes que Meta API funciona)
+# twilio==8.0.0
