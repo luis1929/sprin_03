@@ -1,19 +1,9 @@
-FROM node:20-alpine
+# Usamos la imagen oficial ya lista para usar
+FROM atendare/evolution-api:latest
 
-# Instalamos git (sin el error del cls)
-RUN apk add --no-cache git
-
-# Directorio de trabajo
-WORKDIR /app
-
-# Clonamos la versión oficial de Evolution API
-RUN git clone https://github.com/EvolutionAPI/evolution-api.git .
-
-# Instalamos dependencias
-RUN npm ci --only=production
-
-# Exponemos el puerto que Railway espera
+# Configuramos el puerto
+ENV PORT=8080
 EXPOSE 8080
 
-# Comando de arranque
-CMD ["npm", "start"]
+# No necesitamos instalar git ni clonar nada, la imagen ya trae todo
+CMD ["node", "dist/main.js"]
