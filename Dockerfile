@@ -1,5 +1,5 @@
 # Usamos la imagen oficial ya lista para usar
-FROM atendare/evolution-api:latest
+FROM atendahq/evolution-api:latest
 
 # Configuramos el puerto
 ENV PORT=8080
