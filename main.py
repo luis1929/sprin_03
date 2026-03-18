@@ -11,7 +11,7 @@ import uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import desc, func, text
+from sqlalchemy import desc, text
 import jwt
 import requests
 
@@ -63,7 +63,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     last_interaction = db.Column(db.DateTime)
     status = db.Column(db.String(20), default="active")
-    metadata = db.Column(db.JSON, default=dict)
+    meta_data = db.Column(db.JSON, default=dict)
 
     conversations = db.relationship("Conversation", backref="user", lazy="dynamic")
     messages = db.relationship("Message", backref="user", lazy="dynamic")
@@ -96,7 +96,7 @@ class Message(db.Model):
     content = db.Column(db.Text, nullable=False)
     channel = db.Column(db.String(50), nullable=False)
     processed_by = db.Column(db.String(100))
-    metadata = db.Column(db.JSON, default=dict)
+    meta_data = db.Column(db.JSON, default=dict)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
@@ -113,7 +113,7 @@ class Analytics(db.Model):
     resolution_rate = db.Column(db.Float)
     conversion_indicator = db.Column(db.Boolean, default=False)
     churn_risk_score = db.Column(db.Float, index=True)
-    metadata = db.Column(db.JSON, default=dict)
+    meta_data = db.Column(db.JSON, default=dict)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (
@@ -252,7 +252,7 @@ def enviar_mensaje_evolution(numero, mensaje):
 def home():
     return jsonify({
         "status": "online",
-        "service": "ATO Financial Chatbot v2.0",
+        "service": "ATO Financial Chatbot",
         "version": "2.0"
     }), 200
 
@@ -349,7 +349,7 @@ def webhook_evolution():
             content=mensaje,
             channel="whatsapp",
             processed_by="evolution",
-            metadata={
+            meta_data={
                 "event": event_name,
                 "remote_jid": remote_jid
             }
@@ -402,7 +402,7 @@ def webhook_from_n8n():
         user_id = data.get("user_id")
         message_content = data.get("message")
         agent_type = data.get("agent_type")
-        metadata = data.get("metadata", {})
+        meta_data = data.get("metadata", {})
 
         if not all([conversation_id, user_id, message_content]):
             return jsonify({"error": "Missing required fields"}), 400
@@ -413,13 +413,13 @@ def webhook_from_n8n():
             user_id=user_id,
             role="agent",
             content=message_content,
-            channel=metadata.get("channel", "whatsapp"),
-            processed_by=metadata.get("processed_by", "flowise"),
-            metadata=metadata
+            channel=meta_data.get("channel", "whatsapp"),
+            processed_by=meta_data.get("processed_by", "flowise"),
+            meta_data=meta_data
         )
         db.session.add(msg)
 
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user:
             user.last_interaction = datetime.utcnow()
             if agent_type:
@@ -447,8 +447,39 @@ def webhook_from_n8n():
 @app.route("/conversations/<conversation_id>", methods=["GET"])
 @token_required
 def get_conversation(user_id, conversation_id):
-    conversation = Conversation.query.get(conversation_id)
+    conversation = db.session.get(Conversation, conversation_id)
 
-  if not conversation:
-    return jsonify({"error": "Conversation not found"}), 404
+    if not conversation:
+        return jsonify({"error": "Conversation not found"}), 404
 
+    messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.created_at.asc()).all()
+
+    return jsonify({
+        "conversation": {
+            "id": conversation.id,
+            "user_id": conversation.user_id,
+            "agent_type": conversation.agent_type,
+            "status": conversation.status,
+            "started_at": conversation.started_at.isoformat() if conversation.started_at else None,
+            "ended_at": conversation.ended_at.isoformat() if conversation.ended_at else None,
+            "summary": conversation.summary,
+            "context": conversation.context,
+            "sentiment": conversation.sentiment,
+            "resolution_score": conversation.resolution_score
+        },
+        "messages": [
+            {
+                "id": m.id,
+                "role": m.role,
+                "content": m.content,
+                "channel": m.channel,
+                "processed_by": m.processed_by,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            }
+            for m in messages
+        ]
+    }), 200
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
