@@ -7,9 +7,8 @@ app = Flask(__name__)
 # ==============================
 # CONFIGURACIÓN (Vía Variables de Entorno)
 # ==============================
-# Estas las configuras en el panel de Railway para no exponerlas
 FLOWISE_URL = os.getenv("FLOWISE_URL", "https://tu-flowwise-en-railway.up.railway.app/api/v1/prediction/ID_DE_TU_FLUJO")
-EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL") # Ejemplo: https://sprin_03-production.up.railway.app
+EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL")
 EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY")
 INSTANCE_NAME = os.getenv("INSTANCE_NAME", "Colibry")
 
@@ -21,11 +20,10 @@ def consultar_flowise(pregunta, session_id):
         "question": pregunta,
         "overrideConfig": {
             "sessionId": session_id
-            # Aquí Flowwise decidirá si usar OpenAI o Anthropic según lo configures
         }
     }
     headers = {"Content-Type": "application/json"}
-    
+
     try:
         res = requests.post(FLOWISE_URL, json=payload, headers=headers, timeout=30)
         res.raise_for_status()
@@ -34,17 +32,16 @@ def consultar_flowise(pregunta, session_id):
         return f"Error conectando con el cerebro Colibry: {str(e)}"
 
 # ==============================
-# ENVIAR MENSAJE VIA EVOLUTION API (Adiós Twilio/Meta)
+# ENVIAR MENSAJE VIA EVOLUTION API
 # ==============================
 def enviar_mensaje_evolution(numero, mensaje):
-    # Endpoint de Evolution para enviar texto
     url = f"{EVOLUTION_API_URL}/message/sendText/{INSTANCE_NAME}"
-    
+
     headers = {
         "apikey": EVOLUTION_API_KEY,
         "Content-Type": "application/json"
     }
-    
+
     payload = {
         "number": numero,
         "options": {"delay": 1200, "presence": "composing"},
@@ -58,26 +55,24 @@ def enviar_mensaje_evolution(numero, mensaje):
         print(f"Error al enviar por Evolution: {e}")
 
 # ==============================
-# WEBHOOK (Recibe de Evolution o n8n)
+# RUTAS
 # ==============================
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"status": "online", "service": "ATO Financial Chatbot"}), 200
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
     print("Evento recibido de Evolution:", data)
 
     try:
-        # Evolution API envía el mensaje en una estructura diferente a Meta
-        # Ajustamos para capturar el texto y el número correctamente
         mensaje = data.get("data", {}).get("message", {}).get("conversation", "")
         numero = data.get("data", {}).get("key", {}).get("remoteJid", "").split("@")[0]
 
         if mensaje and numero:
             print(f"Procesando mensaje de {numero}: {mensaje}")
-            
-            # Consultamos a Flowwise (donde están tus 2 IAs)
             respuesta = consultar_flowise(mensaje, numero)
-            
-            # Enviamos respuesta por Evolution
             enviar_mensaje_evolution(numero, respuesta)
 
     except Exception as e:
@@ -86,6 +81,5 @@ def webhook():
     return jsonify({"status": "success"}), 200
 
 if __name__ == "__main__":
-    # Railway usa el puerto que le asigne la plataforma
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
