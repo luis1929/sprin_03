@@ -449,5 +449,6 @@ def webhook_from_n8n():
 def get_conversation(user_id, conversation_id):
     conversation = Conversation.query.get(conversation_id)
 
-    if not conversation:
-        return jsonify({"error": "Conversation not
+  if not conversation:
+    return jsonify({"error": "Conversation not found"}), 404
+
