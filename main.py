@@ -67,7 +67,7 @@ def consultar_flowise(pregunta, session_id):
 def enviar_mensaje_evolution(numero, mensaje):
     if not EVOLUTION_API_URL or not EVOLUTION_API_KEY:
         logger.error("Evolution API no está configurado")
-        return None
+        return {"status": "error", "body": "Evolution no configurado", "url": None}
 
     url = f"{EVOLUTION_API_URL}/message/sendText/{INSTANCE_NAME}"
     headers = {
@@ -85,13 +85,20 @@ def enviar_mensaje_evolution(numero, mensaje):
         }
     }
 
+    logger.info(f"Evolution URL: {url}")
+    logger.info(f"Evolution payload: {payload}")
+
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=30)
-        logger.info(f"Mensaje enviado a {numero} - Status: {res.status_code}")
-        return res.status_code
+        try:
+            body = res.json()
+        except Exception:
+            body = res.text
+        logger.info(f"Evolution status: {res.status_code} | body: {body}")
+        return {"status": res.status_code, "body": body, "url": url}
     except Exception as e:
         logger.error(f"Error al enviar por Evolution: {str(e)}")
-        return None
+        return {"status": "exception", "body": str(e), "url": url}
 
 
 @app.errorhandler(404)
@@ -109,7 +116,7 @@ def home():
     return jsonify({
         "status": "online",
         "service": "ATO Financial Chatbot",
-        "version": "2.2-minimal"
+        "version": "2.3-debug"
     }), 200
 
 
@@ -118,7 +125,7 @@ def health():
     return jsonify({
         "status": "online",
         "mode": "degraded",
-        "version": "2.2-minimal",
+        "version": "2.3-debug",
         "timestamp": datetime.utcnow().isoformat(),
         "dependencies": {
             "database": "disabled",
@@ -168,7 +175,7 @@ def webhook_evolution():
             }), 400
 
         respuesta = consultar_flowise(mensaje, session_id)
-        evolution_status = enviar_mensaje_evolution(numero, respuesta)
+        evo_result = enviar_mensaje_evolution(numero, respuesta)
 
         return jsonify({
             "status": "success",
@@ -176,8 +183,11 @@ def webhook_evolution():
             "database_persisted": False,
             "event": event_name,
             "number": numero,
-            "evolution_status": evolution_status,
-            "reply_preview": respuesta[:120]
+            "reply_preview": respuesta[:120],
+            # 👇 Estos 3 campos nuevos revelan exactamente qué pasa con Evolution
+            "evolution_status": evo_result.get("status"),
+            "evolution_body": evo_result.get("body"),
+            "evolution_url_used": evo_result.get("url"),
         }), 200
 
     except Exception as e:
