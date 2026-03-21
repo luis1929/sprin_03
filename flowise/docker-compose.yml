@@ -1,26 +1,38 @@
 services:
-  flowise:
-    image: flowiseai/flowise:latest
-    container_name: flowise
+  evolution_api:
+    container_name: evolution_api
+    image: evoapicloud/evolution-api:latest
     restart: always
     ports:
-      - "3001:3000"
-    environment:
-      - PORT=3000
-      - FLOWISE_USERNAME=admin
-      - FLOWISE_PASSWORD=Barrera1965$
-      - DATABASE_TYPE=sqlite
-      - APIKEY_PATH=/root/.flowise
-      - SECRETKEY_PATH=/root/.flowise
-      - OPENAI_API_KEY=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
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
     volumes:
-      - flowise_data:/root/.flowise
+      - evolution_instances:/evolution/instances
     networks:
-      - ato_network
+      - evolution-net
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: colibry_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: evopass2025
+      POSTGRES_DB: evolution
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - evolution-net
 
 volumes:
-  flowise_data:
+  evolution_instances:
+  pg_data:
 
 networks:
-  ato_network:
+  evolution-net:
     driver: bridge
