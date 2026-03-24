@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Colibry Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);min-height:100vh;color:#fff}
+    .card-p{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;backdrop-filter:blur(10px)}
+    .dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0}
+    .dot-ok{background:#22c55e;box-shadow:0 0 7px #22c55e}
+    .dot-off{background:#ef4444;box-shadow:0 0 7px #ef4444}
+    .dot-na{background:#94a3b8}
+    .val{font-size:1.9rem;font-weight:700;color:#e94560}
+    .tool-row{background:rgba(255,255,255,.04);border-radius:8px;padding:5px 10px;margin-bottom:3px;font-size:.8rem}
+    .ts{color:rgba(255,255,255,.4);font-size:.73rem}
+    .btn-r{background:linear-gradient(135deg,#e94560,#0f3460);border:none}
+  </style>
+</head>
+<body>
+<div class="container py-4" style="max-width:600px">
+
+  <div class="text-center mb-4">
+    <div style="font-size:2.2rem">🕊</div>
+    <h2 class="fw-bold mb-0">Colibry Panel</h2>
+    <small class="text-white-50">{{ now }}</small>
+  </div>
+
+  <div class="card-p p-3 mb-3 d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+      <span class="dot {{ 'dot-ok' if bot_ok else 'dot-off' }}"></span>
+      <strong>Bot Colibry</strong>
+    </div>
+    <div class="text-end">
+      <span class="badge {{ 'bg-success' if bot_ok else 'bg-danger' }}">{{ 'ACTIVO' if bot_ok else 'INACTIVO' }}</span>
+      <div class="ts">puerto 5000</div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-6">
+      <div class="card-p p-3 text-center">
+        <div class="val">{{ msgs_today }}</div>
+        <div class="text-white-50 small">Mensajes hoy</div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card-p p-3 text-center">
+        <div class="val">{{ tools|length }}</div>
+        <div class="text-white-50 small">Tareas recientes</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-p p-3 mb-3">
+    <div class="text-white-50 small mb-1">Ultimo mensaje recibido</div>
+    <div class="fw-semibold">{{ last_msg }}</div>
+  </div>
+
+  <div class="card-p p-3 mb-3">
+    <div class="fw-bold mb-3">Servicios</div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="d-flex align-items-center">
+        <span class="dot {{ 'dot-ok' if evolution_ok else 'dot-off' }}"></span>
+        Evolution API
+      </div>
+      <div class="text-end">
+        <span class="badge {{ 'bg-success' if evolution_ok else 'bg-danger' }}">{{ 'ACTIVO' if evolution_ok else 'INACTIVO' }}</span>
+        <div class="ts">:8080</div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="d-flex align-items-center">
+        <span class="dot {{ 'dot-ok' if flowise_ok else 'dot-na' }}"></span>
+        Flowise
+      </div>
+      <div class="text-end">
+        <span class="badge {{ 'bg-success' if flowise_ok else 'bg-secondary' }}">{{ 'ACTIVO' if flowise_ok else 'INACTIVO' }}</span>
+        <div class="ts">{{ flowise_port }}</div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center">
+        <span class="dot {{ 'dot-ok' if n8n_ok else 'dot-na' }}"></span>
+        n8n
+      </div>
+      <div class="text-end">
+        <span class="badge {{ 'bg-success' if n8n_ok else 'bg-secondary' }}">{{ 'ACTIVO' if n8n_ok else 'INACTIVO' }}</span>
+        <div class="ts">:{{ n8n_port }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-p p-3 mb-3">
+    <div class="fw-bold mb-2">Tareas Dispatch (ultimas 10)</div>
+    {% if tools %}
+      {% for t in tools|reverse %}
+        <div class="tool-row d-flex justify-content-between">
+          <span>{{ t.name }}</span>
+          <span class="ts">{{ t.ts }}</span>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-white-50 small">Sin tareas registradas</div>
+    {% endif %}
+  </div>
+
+  <div class="card-p p-3 mb-4">
+    <div class="text-white-50 small mb-1">Uptime del servidor</div>
+    <div class="fw-semibold">{{ uptime }}</div>
+  </div>
+
+  <button class="btn btn-r text-white w-100 rounded-3 mb-3" onclick="location.reload()">
+    Actualizar panel
+  </button>
+  <div class="text-center">
+    <a href="/" class="text-white-50 small">Dashboard principal</a>
+  </div>
+</div>
+</body>
+</html>

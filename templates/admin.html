@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colibry CRM · Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --gold: #f0a500;
+    --gold-light: #ffd166;
+    --bg-card: #1e2130;
+    --bg-page: #12141f;
+    --border: #2a2d3e;
+  }
+  body { background: var(--bg-page); font-family: 'Segoe UI', sans-serif; }
+
+  /* ── Topbar ── */
+  .topbar {
+    background: linear-gradient(135deg, #0d1117 0%, #1a1f35 100%);
+    border-bottom: 2px solid var(--gold);
+    padding: 14px 28px;
+  }
+  .topbar .brand { color: var(--gold); font-weight: 700; font-size: 1.25rem; letter-spacing: .5px; }
+  .topbar .brand span { color: #fff; }
+
+  /* ── KPI cards ── */
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 20px;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .kpi-icon {
+    width: 52px; height: 52px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; margin-bottom: 12px;
+  }
+  .kpi-value { font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
+  .kpi-label { font-size: .8rem; color: #8b8fa8; margin-top: 4px; text-transform: uppercase; letter-spacing: .6px; }
+  .kpi-badge { font-size: .75rem; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+
+  /* ── Chart panels ── */
+  .chart-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .panel-title {
+    font-size: .85rem; font-weight: 600; color: var(--gold);
+    text-transform: uppercase; letter-spacing: .8px; margin-bottom: 16px;
+  }
+
+  /* ── CRM search ── */
+  .search-box { position: relative; }
+  .search-box .bi-search {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: #8b8fa8; font-size: 1rem;
+  }
+  .search-box input { padding-left: 40px; background: #0d1117; border-color: var(--border); color: #fff; }
+  .search-box input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(240,165,0,.2); }
+
+  /* ── Table ── */
+  .table-dark { --bs-table-bg: var(--bg-card); }
+  .table > :not(caption) > * > * { border-color: var(--border); }
+  .badge-cita { background: #14532d; color: #4ade80; }
+  .badge-no   { background: #3b1f1f; color: #f87171; }
+
+  /* ── History modal ── */
+  .chat-msg { border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; font-size: .88rem; max-width: 80%; }
+  .chat-u { background: #1e3a5f; margin-left: auto; text-align: right; }
+  .chat-b { background: #1e2a1e; }
+  .ts { font-size: .7rem; color: #8b8fa8; margin-top: 2px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0d1117; }
+  ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
+
+  /* ── Spinner ── */
+  .spinner-gold { color: var(--gold); }
+
+  /* ── Responsive chart height ── */
+  .chart-wrap { position: relative; height: 260px; }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar d-flex align-items-center justify-content-between">
+  <div>
+    <div class="brand">Colibry <span>CRM</span></div>
+    <div style="font-size:.75rem;color:#8b8fa8;">America's TAX OFFICE · Panel de Administración</div>
+  </div>
+  <div class="d-flex gap-3 align-items-center">
+    <span class="text-muted" id="last-update" style="font-size:.75rem;"></span>
+    <a href="/admin/api/export/csv" class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600;">
+      <i class="bi bi-download me-1"></i>Exportar CSV
+    </a>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4" id="kpi-row">
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(240,165,0,.15);color:var(--gold);">
+          <i class="bi bi-people-fill"></i>
+        </div>
+        <div class="kpi-value" id="kpi-usuarios">—</div>
+        <div class="kpi-label">Usuarios Únicos</div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(74,222,128,.1);color:#4ade80;">
+          <i class="bi bi-calendar2-check-fill"></i>
+        </div>
+        <div class="kpi-value" id="kpi-tasa">—</div>
+        <div class="kpi-label">Tasa Conversión Citas</div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(96,165,250,.1);color:#60a5fa;">
+          <i class="bi bi-translate"></i>
+        </div>
+        <div class="kpi-value" id="kpi-idioma">—</div>
+        <div class="kpi-label">Idioma Predominante</div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(196,181,253,.1);color:#c4b5fd;">
+          <i class="bi bi-chat-dots-fill"></i>
+        </div>
+        <div class="kpi-value" id="kpi-total">—</div>
+        <div class="kpi-label">Total Interacciones</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-5">
+      <div class="chart-panel h-100">
+        <div class="panel-title"><i class="bi bi-bar-chart-fill me-2"></i>Consultas por Servicio</div>
+        <div class="chart-wrap"><canvas id="chartServicios"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-7">
+      <div class="chart-panel h-100">
+        <div class="panel-title"><i class="bi bi-graph-up me-2"></i>Flujo de Usuarios · Últimos 30 días</div>
+        <div class="chart-wrap"><canvas id="chartFlujo"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CRM Search -->
+  <div class="chart-panel mb-4">
+    <div class="panel-title"><i class="bi bi-person-lines-fill me-2"></i>Buscador de Clientes</div>
+    <div class="row g-2 mb-3">
+      <div class="col-12 col-md-8 col-lg-5">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="search-input" class="form-control"
+            placeholder="Buscar por nickname…" autocomplete="off">
+        </div>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-warning" onclick="buscar()">
+          <i class="bi bi-search me-1"></i>Buscar
+        </button>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-dark table-hover table-sm align-middle mb-0">
+        <thead>
+          <tr style="color:#8b8fa8;font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;">
+            <th>#</th>
+            <th>Nickname</th>
+            <th>Fecha</th>
+            <th>Idioma</th>
+            <th>Servicio</th>
+            <th>Cita</th>
+            <th>ID / Datos</th>
+            <th>Historial</th>
+          </tr>
+        </thead>
+        <tbody id="crm-tbody">
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4" style="font-size:.85rem;">
+              <i class="bi bi-search me-2"></i>Ingresa un nickname para buscar
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Modal Historial -->
+<div class="modal fade" id="modalHistorial" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content" style="background:#1e2130;border-color:#2a2d3e;">
+      <div class="modal-header" style="border-color:#2a2d3e;">
+        <h6 class="modal-title text-warning"><i class="bi bi-chat-square-text me-2"></i>Historial de Chat</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-chat-body">
+        <div class="text-center text-muted py-3">Sin mensajes</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const GOLD = '#f0a500';
+const GOLD_LIGHT = '#ffd166';
+const BASE_URL = '';
+
+// ── KPIs ──────────────────────────────────────────────────────────────────
+async function loadKPIs() {
+  try {
+    const r = await fetch(BASE_URL + '/admin/api/stats');
+    const d = await r.json();
+    document.getElementById('kpi-usuarios').textContent = d.total_usuarios ?? '—';
+    document.getElementById('kpi-tasa').textContent     = (d.tasa_citas ?? 0) + '%';
+    document.getElementById('kpi-idioma').textContent   = d.idioma_top ?? '—';
+    document.getElementById('kpi-total').textContent    = d.total_interacciones ?? '—';
+    document.getElementById('last-update').textContent  =
+      'Actualizado: ' + new Date().toLocaleTimeString('es-CO');
+  } catch(e) { console.error('KPIs', e); }
+}
+
+// ── Chart Servicios ───────────────────────────────────────────────────────
+async function loadChartServicios() {
+  try {
+    const r = await fetch(BASE_URL + '/admin/api/chart/servicios');
+    const d = await r.json();
+    const colors = ['#f0a500','#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399'];
+    new Chart(document.getElementById('chartServicios'), {
+      type: 'bar',
+      data: {
+        labels: d.labels,
+        datasets: [{
+          label: 'Consultas',
+          data: d.data,
+          backgroundColor: colors.slice(0, d.data.length),
+          borderRadius: 6,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#2a2d3e' }, ticks: { color: '#8b8fa8' } },
+          y: { grid: { color: '#2a2d3e' }, ticks: { color: '#8b8fa8', stepSize: 1 } }
+        }
+      }
+    });
+  } catch(e) { console.error('ChartServicios', e); }
+}
+
+// ── Chart Flujo ───────────────────────────────────────────────────────────
+async function loadChartFlujo() {
+  try {
+    const r = await fetch(BASE_URL + '/admin/api/chart/flujo');
+    const d = await r.json();
+    new Chart(document.getElementById('chartFlujo'), {
+      type: 'line',
+      data: {
+        labels: d.labels,
+        datasets: [{
+          label: 'Usuarios',
+          data: d.data,
+          borderColor: GOLD,
+          backgroundColor: 'rgba(240,165,0,.08)',
+          borderWidth: 2,
+          pointBackgroundColor: GOLD,
+          pointRadius: 3,
+          fill: true,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#2a2d3e' }, ticks: { color: '#8b8fa8', maxTicksLimit: 10 } },
+          y: { grid: { color: '#2a2d3e' }, ticks: { color: '#8b8fa8', stepSize: 1 } }
+        }
+      }
+    });
+  } catch(e) { console.error('ChartFlujo', e); }
+}
+
+// ── CRM Search ────────────────────────────────────────────────────────────
+async function buscar() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  const tbody = document.getElementById('crm-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3"><span class="spinner-border spinner-border-sm spinner-gold"></span></td></tr>';
+  try {
+    const r = await fetch(BASE_URL + '/admin/api/buscar?q=' + encodeURIComponent(q));
+    const rows = await r.json();
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Sin resultados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((row, i) => {
+      const fecha = row.fecha_entrada ? row.fecha_entrada.slice(0,16).replace('T',' ') : '—';
+      const datos = row.datos_adicionales && Object.keys(row.datos_adicionales).length
+        ? '<span class="badge bg-secondary">' + JSON.stringify(row.datos_adicionales) + '</span>'
+        : '<span class="text-muted">—</span>';
+      const citaBadge = row.pidio_cita
+        ? '<span class="badge badge-cita"><i class="bi bi-check-circle-fill me-1"></i>Sí</span>'
+        : '<span class="badge badge-no"><i class="bi bi-x-circle me-1"></i>No</span>';
+      const msgs = Array.isArray(row.historial_chat) ? row.historial_chat.length : 0;
+      const histBtn = msgs > 0
+        ? '<button class="btn btn-sm btn-outline-info py-0 px-2" onclick="verHistorial(' + i + ')" data-idx="' + i + '">'
+          + '<i class="bi bi-chat-square-text me-1"></i>' + msgs + ' msg</button>'
+        : '<span class="text-muted">—</span>';
+      return '<tr data-chat=\''+encodeURIComponent(JSON.stringify(row.historial_chat||[]))+'\'>'
+        + '<td class="text-muted">' + row.id + '</td>'
+        + '<td><strong style="color:#ffd166;">' + (row.nickname||'—') + '</strong></td>'
+        + '<td style="font-size:.8rem;color:#8b8fa8;">' + fecha + '</td>'
+        + '<td><span class="badge bg-secondary">' + (row.idioma||'—').toUpperCase() + '</span></td>'
+        + '<td>' + (row.servicio_consultado||'<span class="text-muted">—</span>') + '</td>'
+        + '<td>' + citaBadge + '</td>'
+        + '<td>' + datos + '</td>'
+        + '<td>' + histBtn + '</td>'
+        + '</tr>';
+    }).join('');
+    window._crmRows = rows;
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-3">Error: ' + e.message + '</td></tr>';
+  }
+}
+
+function verHistorial(idx) {
+  const row = window._crmRows[idx];
+  const msgs = row.historial_chat || [];
+  const body = document.getElementById('modal-chat-body');
+  if (!msgs.length) {
+    body.innerHTML = '<div class="text-center text-muted py-3">Sin mensajes registrados</div>';
+  } else {
+    body.innerHTML = '<div class="mb-2 text-muted" style="font-size:.78rem;">'+msgs.length+' mensajes · Cliente: <strong style="color:#ffd166;">'+(row.nickname||'—')+'</strong></div>'
+      + msgs.map(m => {
+        const isUser = m.r === 'u';
+        const ts = m.t ? m.t.slice(0,16).replace('T',' ') : '';
+        return '<div class="d-flex ' + (isUser ? 'justify-content-end' : '') + '">'
+          + '<div class="chat-msg ' + (isUser ? 'chat-u' : 'chat-b') + '">'
+          + '<div>' + (m.m||'') + '</div>'
+          + '<div class="ts">' + (isUser ? 'Cliente' : 'Colibry') + ' · ' + ts + '</div>'
+          + '</div></div>';
+      }).join('');
+  }
+  new bootstrap.Modal(document.getElementById('modalHistorial')).show();
+}
+
+// Enter key on search
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') buscar();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadKPIs();
+loadChartServicios();
+loadChartFlujo();
+// Auto-refresh KPIs every 60s
+setInterval(loadKPIs, 60000);
+</script>
+</body>
+</html>
