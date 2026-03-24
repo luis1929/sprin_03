@@ -429,16 +429,57 @@ def _detectar_intenciones(text: str) -> dict:
         result["id_encontrado"] = m.group()
     return result
 
-def _actualizar_interaccion(session_id: str, intenciones: dict):
+
+# ── Especialistas ATO Financial ───────────────────────────────────────────
+
+ESPECIALISTAS = {
+    "taxes":       "Luis",
+    "immigration": "Marta",
+    "citas":       "Marta",
+    "precios":     "Carlos",
+    "default":     "Equipo ATO",
+}
+
+
+def _asignar_responsable(servicio: str) -> str:
+    return ESPECIALISTAS.get(servicio or "default", ESPECIALISTAS["default"])
+
+
+def _notificar_cita(nickname: str, servicio: str, responsable: str) -> None:
+    msg = (
+        f"[CITA] Nueva solicitud de '{nickname}' "
+        f"para '{servicio}' → asignada a {responsable}"
+    )
+    logger.info(msg)
+    webhook_url = os.getenv("WEBHOOK_CITAS", "")
+    if webhook_url:
+        try:
+            requests.post(webhook_url, json={
+                "text":        msg,
+                "nickname":    nickname,
+                "servicio":    servicio,
+                "responsable": responsable,
+                "timestamp":   datetime.now().isoformat(),
+            }, timeout=5)
+            logger.info("[WEBHOOK] Notificacion enviada OK")
+        except Exception as exc:
+            logger.warning("[WEBHOOK] Fallo (no critico): %s", exc)
+
+def _actualizar_interaccion(session_id: str, nickname: str, intenciones: dict):
     if not session_id:
         return
     try:
         updates, params = [], []
+        responsable = None
         if intenciones.get("servicio"):
             updates.append("servicio_consultado = %s")
             params.append(intenciones["servicio"])
         if intenciones.get("pidio_cita"):
             updates.append("pidio_cita = TRUE")
+            updates.append("estado_cita = 'pendiente'")
+            responsable = _asignar_responsable(intenciones.get("servicio"))
+            updates.append("responsable = %s")
+            params.append(responsable)
         if intenciones.get("id_encontrado"):
             updates.append("datos_adicionales = datos_adicionales || %s::jsonb")
             params.append(json.dumps({"id_cedula": intenciones["id_encontrado"]}))
@@ -448,10 +489,14 @@ def _actualizar_interaccion(session_id: str, intenciones: dict):
         with _db() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    f"UPDATE usuarios_interacciones SET {', '.join(updates)} WHERE session_id = %s",
-                    params
+                    "UPDATE usuarios_interacciones SET "
+                    + ", ".join(updates)
+                    + " WHERE session_id = %s",
+                    params,
                 )
             conn.commit()
+        if responsable:
+            _notificar_cita(nickname, intenciones.get("servicio", ""), responsable)
     except Exception as exc:
         logger.warning("DB actualizar_interaccion: %s", exc)
 
@@ -564,7 +609,7 @@ def ejecutar():
 
         # Detectar intenciones y persistir
         intenciones = _detectar_intenciones(message + " " + bot_reply)
-        _actualizar_interaccion(session_id, intenciones)
+        _actualizar_interaccion(session_id, nickname, intenciones)
         _guardar_mensaje(session_id, message, bot_reply)
 
         return jsonify({"status": "ok", "mensaje": bot_reply, "session_id": session_id})
@@ -761,6 +806,7 @@ def status_panel():
     )
 
 
+
 # ── Admin CRM Dashboard ────────────────────────────────────────────────────
 
 @app.route("/admin")
@@ -780,7 +826,6 @@ def admin_stats():
                     " WHERE nickname IS NOT NULL AND nickname != ''"
                 )
                 total_usuarios = cur.fetchone()["t"] or 0
-
                 cur.execute(
                     "SELECT COUNT(DISTINCT nickname) AS tot,"
                     " SUM(CASE WHEN pidio_cita THEN 1 ELSE 0 END) AS citas"
@@ -791,23 +836,26 @@ def admin_stats():
                 tot = row["tot"] or 0
                 citas = row["citas"] or 0
                 tasa = round(citas / tot * 100, 1) if tot > 0 else 0.0
-
                 cur.execute(
                     "SELECT idioma, COUNT(*) AS c FROM usuarios_interacciones"
                     " WHERE idioma IS NOT NULL GROUP BY idioma ORDER BY c DESC LIMIT 1"
                 )
                 lr = cur.fetchone()
                 idioma_top = (lr["idioma"] or "ES").upper() if lr else "ES"
-
                 cur.execute("SELECT COUNT(*) AS t FROM usuarios_interacciones")
                 total_int = cur.fetchone()["t"] or 0
-
+                cur.execute(
+                    "SELECT COUNT(*) AS t FROM usuarios_interacciones"
+                    " WHERE pidio_cita = TRUE AND estado_cita = 'pendiente'"
+                )
+                citas_pend = cur.fetchone()["t"] or 0
         return jsonify({
-            "total_usuarios": total_usuarios,
-            "tasa_citas": tasa,
-            "con_cita": citas,
-            "idioma_top": idioma_top,
+            "total_usuarios":     total_usuarios,
+            "tasa_citas":         tasa,
+            "con_cita":           citas,
+            "idioma_top":         idioma_top,
             "total_interacciones": total_int,
+            "citas_pendientes":   citas_pend,
         })
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -849,6 +897,60 @@ def admin_chart_flujo():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/admin/api/citas")
+@_require_auth
+def admin_citas():
+    responsable = request.args.get("responsable", "").strip()
+    try:
+        with _db() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if responsable:
+                    cur.execute(
+                        "SELECT id, nickname, fecha_entrada::text, idioma,"
+                        " servicio_consultado, responsable, estado_cita, datos_adicionales, historial_chat"
+                        " FROM usuarios_interacciones"
+                        " WHERE pidio_cita = TRUE AND responsable ILIKE %s"
+                        " ORDER BY fecha_entrada DESC LIMIT 50",
+                        (f"%{responsable}%",),
+                    )
+                else:
+                    cur.execute(
+                        "SELECT id, nickname, fecha_entrada::text, idioma,"
+                        " servicio_consultado, responsable, estado_cita, datos_adicionales, historial_chat"
+                        " FROM usuarios_interacciones"
+                        " WHERE pidio_cita = TRUE"
+                        " ORDER BY estado_cita ASC, fecha_entrada DESC LIMIT 50"
+                    )
+                rows = [dict(r) for r in cur.fetchall()]
+        return jsonify(rows)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/admin/api/cita/estado", methods=["POST"])
+@_require_auth
+def admin_cita_estado():
+    data   = request.get_json(silent=True) or {}
+    cita_id = data.get("id")
+    estado  = data.get("estado", "pendiente")
+    if not cita_id:
+        return jsonify({"error": "id requerido"}), 400
+    estados_validos = ["pendiente", "confirmada", "completada", "cancelada"]
+    if estado not in estados_validos:
+        return jsonify({"error": f"estado invalido, usa: {estados_validos}"}), 400
+    try:
+        with _db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE usuarios_interacciones SET estado_cita = %s WHERE id = %s",
+                    (estado, cita_id),
+                )
+            conn.commit()
+        return jsonify({"ok": True, "id": cita_id, "estado": estado})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/admin/api/buscar")
 @_require_auth
 def admin_buscar():
@@ -860,7 +962,8 @@ def admin_buscar():
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     "SELECT id, nickname, fecha_entrada::text, idioma,"
-                    " servicio_consultado, pidio_cita, datos_adicionales, historial_chat"
+                    " servicio_consultado, pidio_cita, responsable, estado_cita,"
+                    " datos_adicionales, historial_chat"
                     " FROM usuarios_interacciones WHERE nickname ILIKE %s"
                     " ORDER BY fecha_entrada DESC LIMIT 20",
                     (f"%{q}%",),
@@ -876,26 +979,38 @@ def admin_buscar():
 def admin_export_csv():
     import csv as _csv
     import io as _sio
+    responsable = request.args.get("responsable", "").strip()
     try:
         with _db() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    "SELECT id, nickname, fecha_entrada::text, idioma,"
-                    " servicio_consultado, pidio_cita, datos_adicionales::text"
-                    " FROM usuarios_interacciones ORDER BY fecha_entrada DESC"
-                )
+                if responsable:
+                    cur.execute(
+                        "SELECT id, nickname, fecha_entrada::text, idioma,"
+                        " servicio_consultado, pidio_cita, responsable, estado_cita,"
+                        " datos_adicionales::text"
+                        " FROM usuarios_interacciones WHERE responsable ILIKE %s"
+                        " ORDER BY fecha_entrada DESC",
+                        (f"%{responsable}%",),
+                    )
+                else:
+                    cur.execute(
+                        "SELECT id, nickname, fecha_entrada::text, idioma,"
+                        " servicio_consultado, pidio_cita, responsable, estado_cita,"
+                        " datos_adicionales::text"
+                        " FROM usuarios_interacciones ORDER BY fecha_entrada DESC"
+                    )
                 rows = cur.fetchall()
         buf = _sio.StringIO()
-        w = _csv.DictWriter(buf, fieldnames=[
-            "id","nickname","fecha_entrada","idioma",
-            "servicio_consultado","pidio_cita","datos_adicionales"
-        ])
+        fields = ["id","nickname","fecha_entrada","idioma",
+                  "servicio_consultado","pidio_cita","responsable","estado_cita","datos_adicionales"]
+        w = _csv.DictWriter(buf, fieldnames=fields)
         w.writeheader()
         w.writerows(rows)
+        fname = f"citas_{responsable or 'todos'}_colibry.csv"
         return Response(
             buf.getvalue(),
             mimetype="text/csv",
-            headers={"Content-Disposition": "attachment; filename=clientes_colibry.csv"},
+            headers={"Content-Disposition": f"attachment; filename={fname}"},
         )
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
