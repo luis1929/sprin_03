@@ -183,6 +183,27 @@
       <button class="ob-lang"        id="ob-de" onclick="obLang('de')">DE</button>
     </div>
     <button class="ob-btn" onclick="iniciar()">Comenzar &#x27A4;</button>
+
+    <!-- QR compartir app -->
+    <div style="margin-top:22px;border-top:1px solid rgba(255,255,255,.12);padding-top:18px;">
+      <div style="font-size:.72rem;color:rgba(255,255,255,.5);letter-spacing:.4px;margin-bottom:10px;text-transform:uppercase;">
+        📲 Instala o comparte la App
+      </div>
+      <div id="ob-qr-wrap" style="display:none;text-align:center;margin-bottom:10px;">
+        <img src="/qr.png" alt="QR App"
+             style="width:160px;height:160px;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:#fff;padding:6px;">
+        <div style="font-size:.65rem;color:rgba(255,255,255,.4);margin-top:6px;">Escanea con tu cámara</div>
+      </div>
+      <button onclick="toggleQR()"
+        style="width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+               border-radius:10px;padding:9px;color:rgba(255,255,255,.75);font-size:.8rem;
+               cursor:pointer;letter-spacing:.3px;transition:background .2s;"
+        onmouseover="this.style.background='rgba(255,255,255,.18)'"
+        onmouseout="this.style.background='rgba(255,255,255,.1)'"
+        id="ob-qr-btn">
+        Mostrar código QR
+      </button>
+    </div>
   </div>
 </div>
 
@@ -286,6 +307,14 @@
       "Su nombre o apodo...";
     document.querySelector(".ob-btn").textContent =
       COPY[l].obBtn.replace("\u27A4", "➤");
+  }
+
+  function toggleQR() {
+    const wrap = document.getElementById('ob-qr-wrap');
+    const btn  = document.getElementById('ob-qr-btn');
+    const show = wrap.style.display === 'none';
+    wrap.style.display = show ? 'block' : 'none';
+    btn.textContent    = show ? 'Ocultar código QR' : 'Mostrar código QR';
   }
 
   function iniciar() {
