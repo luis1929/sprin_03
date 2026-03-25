@@ -1,52 +1,22 @@
 {
-  "name": "Colibry Control",
-  "short_name": "Colibry",
-  "description": "Colibry — Panel de Control · America's TAX OFFICE",
-  "start_url": "/status",
+  "name": "America's TAX OFFICE",
+  "short_name": "TAX OFFICE",
+  "description": "America's TAX OFFICE - Financial & Immigration Services",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#ffffff",
-  "theme_color": "#1a1a2e",
+  "background_color": "#0f3460",
+  "theme_color": "#0f3460",
   "lang": "es",
   "icons": [
-    {
-      "src": "/static/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/static/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "/static/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/icons/icon-512.png",  "sizes": "512x512",  "type": "image/png"},
+    {"src": "/static/icons/icon-512.png",  "sizes": "512x512",  "type": "image/png",
+     "purpose": "maskable"}
   ],
   "shortcuts": [
-    {
-      "name": "Estado del bot",
-      "url": "/status",
-      "icons": [
-        {
-          "src": "/static/icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Chat cliente",
-      "url": "/",
-      "icons": [
-        {
-          "src": "/static/icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
+    {"name": "Iniciar Chat", "url": "/",
+     "icons": [{"src": "/static/icons/icon-192.png", "sizes": "192x192"}]}
   ]
 }
