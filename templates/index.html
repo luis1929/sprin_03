@@ -484,5 +484,102 @@
     } finally { btn.disabled = false; txt.focus(); }
   }
 </script>
+
+<!-- PWA Install Banner -->
+<div id="pwa-banner" style="display:none;position:fixed;bottom:80px;left:50%;
+  transform:translateX(-50%);background:linear-gradient(135deg,#1a1f35,#0d1117);
+  border:1px solid #f0a500;border-radius:18px;padding:16px 18px;z-index:9999;
+  max-width:340px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.7);
+  animation:slideUp .4s ease;">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <img src="/static/icons/icon-192.png" style="width:52px;height:52px;border-radius:12px;flex-shrink:0;">
+    <div>
+      <div style="color:#f0a500;font-weight:700;font-size:.95rem;line-height:1.2;">
+        America's TAX OFFICE
+      </div>
+      <div style="color:#aaa;font-size:.78rem;margin-top:3px;">
+        Instala la app en tu pantalla de inicio
+      </div>
+    </div>
+    <button onclick="document.getElementById('pwa-banner').style.display='none'"
+      style="background:none;border:none;color:#8b8fa8;font-size:1.2rem;cursor:pointer;
+             padding:0;margin-left:auto;flex-shrink:0;">✕</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px;">
+    <button onclick="installPWA()"
+      style="flex:1;background:#f0a500;color:#000;border:none;border-radius:10px;
+             padding:10px;font-weight:700;font-size:.88rem;cursor:pointer;">
+      <span style="margin-right:6px;">📲</span>Instalar App
+    </button>
+    <button onclick="document.getElementById('pwa-banner').style.display='none'"
+      style="background:transparent;color:#8b8fa8;border:1px solid #2a2d3e;
+             border-radius:10px;padding:10px 14px;cursor:pointer;font-size:.85rem;">
+      Ahora no
+    </button>
+  </div>
+</div>
+
+<style>
+@keyframes slideUp {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);   opacity: 1; }
+}
+</style>
+
+<script>
+// ── PWA Install Prompt ──────────────────────────────────────────────────
+let _pwaPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _pwaPrompt = e;
+  // Show banner after 5 seconds (don't interrupt immediately)
+  if (!localStorage.getItem('pwa_dismissed')) {
+    setTimeout(() => {
+      document.getElementById('pwa-banner').style.display = 'block';
+    }, 5000);
+  }
+});
+
+async function installPWA() {
+  document.getElementById('pwa-banner').style.display = 'none';
+  if (!_pwaPrompt) return;
+  _pwaPrompt.prompt();
+  const { outcome } = await _pwaPrompt.userChoice;
+  _pwaPrompt = null;
+  if (outcome === 'dismissed') {
+    localStorage.setItem('pwa_dismissed', '1');
+  }
+}
+
+document.getElementById('pwa-banner').querySelector('button:last-child')
+  .addEventListener('click', () => localStorage.setItem('pwa_dismissed', '1'));
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwa-banner').style.display = 'none';
+  localStorage.removeItem('pwa_dismissed');
+  console.log('[PWA] App instalada correctamente');
+});
+
+// ── Service Worker ─────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(reg => {
+        console.log('[SW] Registrado:', reg.scope);
+        reg.addEventListener('updatefound', () => {
+          const w = reg.installing;
+          w.addEventListener('statechange', () => {
+            if (w.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[SW] Nueva version disponible');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[SW] Error:', err));
+  });
+}
+</script>
+
 </body>
 </html>

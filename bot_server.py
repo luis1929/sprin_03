@@ -807,6 +807,25 @@ def status_panel():
 
 
 
+
+# ── PWA — manifest.json + sw.js ───────────────────────────────────────────
+
+@app.route("/manifest.json")
+def pwa_manifest():
+    resp = app.send_static_file("manifest.json")
+    resp.headers["Content-Type"] = "application/manifest+json"
+    return resp
+
+
+@app.route("/sw.js")
+def pwa_sw():
+    resp = app.send_static_file("sw.js")
+    resp.headers["Content-Type"] = "application/javascript"
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 # ── Admin CRM Dashboard ────────────────────────────────────────────────────
 
 @app.route("/admin")
