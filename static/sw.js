@@ -1,41 +1,55 @@
-// Colibry PWA Service Worker v1
-const CACHE = 'ato-v1';
-const PRECACHE = [
-  '/',
-  '/static/icons/icon-192.png',
-  '/static/icons/icon-512.png',
-  '/manifest.json',
-];
-const NO_CACHE = ['/ejecutar', '/tts', '/admin', '/status', '/flowise'];
+// Colibry SW v2
+const CACHE = 'colibry-v2';
+const PRE   = ['/', '/status', '/static/icons/icon-192.png',
+               '/static/icons/icon-512.png', '/static/manifest.json'];
+const SKIP  = ['/ejecutar','/tts','/admin','/status','/qr.png',
+               '/push/','/flowise','/health'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRE)).then(() => self.skipWaiting()));
 });
-
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
+    caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    .then(() => self.clients.claim())
+  );
+});
+self.addEventListener('fetch', e => {
+  const p = new URL(e.request.url).pathname;
+  if (SKIP.some(s => p.startsWith(s)) || e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request).then(hit => {
+      const net = fetch(e.request).then(r => {
+        if (r && r.status === 200 && r.type === 'basic')
+          caches.open(CACHE).then(c => c.put(e.request, r.clone()));
+        return r;
+      }).catch(() => hit);
+      return hit || net;
+    })
   );
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (NO_CACHE.some(p => url.pathname.startsWith(p))) return;
-  if (e.request.method !== 'GET') return;
-
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      const net = fetch(e.request).then(res => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        }
-        return res;
-      }).catch(() => cached);
-      return cached || net;
+// ── Push Notifications ───────────────────────────────────────────────────
+self.addEventListener('push', e => {
+  let data = { title: 'Colibry', body: 'Nueva notificacion', icon: '/static/icons/icon-192.png' };
+  try { data = { ...data, ...e.data.json() }; } catch {}
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body:    data.body,
+      icon:    data.icon || '/static/icons/icon-192.png',
+      badge:   '/static/icons/icon-192.png',
+      vibrate: [200, 100, 200],
+      tag:     data.tag || 'colibry-alert',
+      data:    { url: data.url || '/status' },
     })
   );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/status';
+  e.waitUntil(clients.matchAll({ type: 'window' }).then(ws => {
+    for (const w of ws) if (w.url.includes(url) && 'focus' in w) return w.focus();
+    return clients.openWindow(url);
+  }));
 });

@@ -826,6 +826,93 @@ def pwa_sw():
     return resp
 
 
+
+# ── Push Notifications ─────────────────────────────────────────────────────
+
+import base64, json as _json
+
+_push_subscriptions = []   # In-memory (reemplazar con DB para producción)
+
+@app.route("/push/vapid-public-key")
+def push_vapid_key():
+    key = os.getenv("VAPID_PUBLIC_KEY", "")
+    return jsonify({"publicKey": key})
+
+@app.route("/push/subscribe", methods=["POST"])
+def push_subscribe():
+    sub = request.get_json(silent=True)
+    if sub and sub not in _push_subscriptions:
+        _push_subscriptions.append(sub)
+        logger.info("[PUSH] Nueva suscripcion registrada (%d total)", len(_push_subscriptions))
+    return jsonify({"ok": True})
+
+@app.route("/push/send", methods=["POST"])
+@_require_auth
+def push_send():
+    data  = request.get_json(silent=True) or {}
+    title = data.get("title", "Colibry")
+    body  = data.get("body",  "Nueva alerta")
+    url   = data.get("url",   "/status")
+    sent  = 0
+    failed = 0
+    try:
+        from pywebpush import webpush, WebPushException
+        vapid_private = os.getenv("VAPID_PRIVATE_KEY", "")
+        vapid_email   = os.getenv("VAPID_EMAIL", "mailto:admin@colibry.app")
+        for sub in list(_push_subscriptions):
+            try:
+                webpush(
+                    subscription_info=sub,
+                    data=_json.dumps({"title": title, "body": body, "url": url,
+                                      "icon": "/static/icons/icon-192.png"}),
+                    vapid_private_key=vapid_private,
+                    vapid_claims={"sub": vapid_email},
+                )
+                sent += 1
+            except WebPushException as exc:
+                if exc.response and exc.response.status_code in (404, 410):
+                    _push_subscriptions.remove(sub)
+                else:
+                    failed += 1
+    except ImportError:
+        return jsonify({"error": "pywebpush no instalado"}), 500
+    return jsonify({"sent": sent, "failed": failed})
+
+
+
+# ── QR Code — URL del tunel activo ────────────────────────────────────────
+
+@app.route("/qr.png")
+def qr_code():
+    import subprocess as _sp
+    try:
+        import qrcode
+        from io import BytesIO as _BIO
+        try:
+            log = _sp.check_output(
+                ["journalctl", "-u", "cloudflared", "-n", "50", "--no-pager"],
+                text=True, stderr=_sp.DEVNULL
+            )
+            import re as _re
+            urls = _re.findall(r"https://[\w\-]+\.trycloudflare\.com", log)
+            tunnel_url = urls[-1] if urls else request.host_url.rstrip("/")
+        except Exception:
+            tunnel_url = request.host_url.rstrip("/")
+
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H,
+                            box_size=10, border=4)
+        qr.add_data(tunnel_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#1a1a2e", back_color="white")
+        buf = _BIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        return Response(buf.read(), mimetype="image/png",
+                        headers={"Cache-Control": "no-cache"})
+    except ImportError:
+        return Response("qrcode not installed", status=500)
+
+
 # ── Admin CRM Dashboard ────────────────────────────────────────────────────
 
 @app.route("/admin")

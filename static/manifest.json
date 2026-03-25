@@ -1,13 +1,13 @@
 {
-  "name": "America's TAX OFFICE",
-  "short_name": "Tax Office",
-  "description": "America's TAX OFFICE - Financial & Immigration Services",
-  "start_url": "/",
+  "name": "Colibry Control",
+  "short_name": "Colibry",
+  "description": "Colibry — Panel de Control · America's TAX OFFICE",
+  "start_url": "/status",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#12141f",
-  "theme_color": "#f0a500",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1a2e",
   "lang": "es",
   "icons": [
     {
@@ -27,12 +27,26 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["finance", "business"],
   "shortcuts": [
     {
-      "name": "Consultar ahora",
+      "name": "Estado del bot",
+      "url": "/status",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Chat cliente",
       "url": "/",
-      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
